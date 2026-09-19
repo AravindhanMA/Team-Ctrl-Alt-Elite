@@ -1,19 +1,4 @@
-"""
-Independent self-validator. Re-derives everything from the raw CSV output
-(not from the scheduler's internal state) so it acts as a genuine second
-check, not just an echo of the scheduler's own bookkeeping.
-
-Checks (Scenario A):
-  - workload conservation: every activity's placed nights sum >= total_accesses
-  - planned start date respected
-  - predecessor precedence (finish-to-start, strictly later week)
-  - location capacity never exceeded (per location, per week)
-  - legal mix respected (<=1 PM alone / <=1PC+<=3C / <=4C) per location-week
-  - weekly allocation cap (rule 7) per contract+type+week
-  - workfront cap (rule 8) per contract+type+week+access_night
-  - ECLO forbidden (Scenario A only)
-"""
-from __future__ import annotations
+from _future_ import annotations
 
 import math
 import pandas as pd
@@ -37,9 +22,23 @@ def validate(inst: Instance, access_df: pd.DataFrame, occ_df: pd.DataFrame, scen
         buffer_locs = cb["buffer_extra"] | cb["opposite_bound_buffer"]
         footprints[aid] = {"closure": closure, "buffer": buffer_locs, "contract": contract, "row": row}
 
+    # --- 0. planning horizon boundary (a real gap this validator never
+    #     checked before -- caught by the official validator, not this one:
+    #     any access scheduled outside weeks [1, horizon_weeks] is invalid
+    #     and doesn't count as delivered workload at all, which cascades
+    #     into workload-conservation failures too) ---
+    out_of_horizon = access_df[(access_df["week"] < 1) | (access_df["week"] > inst.horizon_weeks)]
+    if len(out_of_horizon) > 0:
+        for aid, grp in out_of_horizon.groupby("activity_id"):
+            weeks = sorted(grp["week"].unique().tolist())
+            violations.append({"rule": "horizon", "severity": "hard",
+                                "detail": f"{aid}: {len(weeks)} access(es) scheduled outside the "
+                                          f"1..{inst.horizon_weeks} planning horizon: {weeks}"})
+
     # --- 1. workload conservation ---
     for aid, row in act.iterrows():
         a = access_df[access_df["activity_id"] == aid]
+        a = a[(a["week"] >= 1) & (a["week"] <= inst.horizon_weeks)]  # out-of-horizon accesses don't count
         units = a.apply(lambda r: 1.5 if r["eclo"] == 1 else 1.0, axis=1).sum()
         if units < row["total_accesses"] - 1e-9:
             violations.append({"rule": "workload", "severity": "hard",
@@ -189,7 +188,7 @@ def validate(inst: Instance, access_df: pd.DataFrame, occ_df: pd.DataFrame, scen
     return violations
 
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     from scheduler import schedule_scenario_a, build_output_frames
 
     inst = load_instance()
