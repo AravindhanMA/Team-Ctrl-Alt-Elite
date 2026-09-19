@@ -1,4 +1,4 @@
-from __future__ import annotations
+from _future_ import annotations
 
 import math
 from collections import defaultdict
@@ -10,7 +10,7 @@ from buffers import closure_and_buffer
 
 
 class ScheduleState:
-    def __init__(self):
+    def _init_(self):
         # (location_id, week) -> list of dict(activity_id, access_type, is_buffer, footprint_key)
         self.occupants: dict = defaultdict(list)
         # (contract_number, access_type, week) -> {access_night: [activity_id,...]}
@@ -162,7 +162,7 @@ def schedule_scenario_b_exact(inst: Instance, time_limit_seconds: int = 60):
     cover ALL location-based packing/spacing rules as flexible "supply" in
     B, not just raw numeric capacity -- so buffer spacing and PC/PM
     exclusivity are no longer hard CP-SAT constraints here; they're
-    tracked (via `relaxed_conflict_pairs`, attached to the returned state)
+    tracked (via relaxed_conflict_pairs, attached to the returned state)
     for informational / scoring purposes instead. What remains genuinely
     hard for B: workload conservation, weekly-allocation + workfront caps,
     predecessor precedence, and the deadline itself (hard-bounded, so
@@ -197,7 +197,13 @@ def schedule_scenario_b_exact(inst: Instance, time_limit_seconds: int = 60):
             # range itself (no MAX_OVERRUN_WEEKS extension) -- overrun is
             # not just penalized, it's structurally impossible to produce,
             # since no variable for a week beyond the deadline even exists.
-            "weeks": list(range(earliest_week, deadline_week + 1)),
+            # defensive clip: deadline_week should never exceed the horizon
+            # on a well-formed instance (verified true for the sample), but
+            # this guards against a hidden instance where it might, given
+            # how severe silently scheduling outside the horizon turned out
+            # to be (the official validator rejects it outright and doesn't
+            # count that workload as delivered at all)
+            "weeks": list(range(earliest_week, min(deadline_week, inst.horizon_weeks) + 1)),
             "access_type": contract["access_type"],
         }
 
@@ -413,7 +419,7 @@ def schedule_scenario_b_interleaved(inst: Instance, max_week_search: int = 400,
         return True
 
     def run_pass(candidate_aids: set):
-        for week in range(1, max_week_search + 1):
+        for week in range(1, min(max_week_search, inst.horizon_weeks) + 1):
             if all(remaining[aid] <= 1e-9 for aid in candidate_aids):
                 break
 
@@ -601,7 +607,7 @@ def schedule_scenario(
         last_week_used = start_week
         tries = 0
 
-        while placed_credit < total_accesses - 1e-9 and tries < max_week_search:
+        while placed_credit < total_accesses - 1e-9 and tries < max_week_search and week <= inst.horizon_weeks:
             remaining = total_accesses - placed_credit
 
             use_eclo = False
@@ -719,7 +725,7 @@ def build_output_frames(inst: Instance, state: ScheduleState, info: dict, scenar
     return access_df, occ_df, results_df
 
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     inst = load_instance()
     state, info = schedule_scenario_a(inst)
     access_df, occ_df, results_df = build_output_frames(inst, state, info, "A")
