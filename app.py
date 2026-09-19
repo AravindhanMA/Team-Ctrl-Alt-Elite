@@ -1,14 +1,3 @@
-"""
-Nebula X PS1 -- Railway Track Access Optimisation
-Streamlit web app: upload an instance's 8 CSVs, run the greedy scheduler
-for Scenario A / B / C, see feasibility + score, download submission files.
-
-Run locally:      streamlit run app.py
-Deploy (required for judging): Google Cloud Run -- see README.md's
-                    "Google Cloud integration" section for the one-command
-                    `gcloud run deploy` (uses your hackathon GCP project).
-                    A Dockerfile is included for this.
-"""
 import io
 import json
 import os
