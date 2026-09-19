@@ -1,0 +1,6 @@
+pandas>=2.0
+streamlit>=1.30
+plotly>=5.20
+matplotlib>=3.7
+google-genai>=2.3.0
+ortools>=9.10
